@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% if submitted_coords %}
+    <p style="background-color: #1c6ba0; color: white; padding: 0.5rem; border-radius: 0.5rem;" aria-live="polite">Flask received: latitude {{ submitted_coords.latitude }} and longitude {{ submitted_coords.longitude }}.</p>
+  {% endif %}
+  <section aria-labelledby="map-title">
+    <h2 id="map-title">Choose a spot in Edinburgh</h2>
+    <p>Click the map to drop a marker. You can drag it to fine tune the location.</p>
+    <div id="map" role="application" aria-label="Interactive map of Edinburgh"></div>
+    <p id="map-status" role="status">No point selected yet.</p>
+    <form method="post">
+      <label for="latitude">Latitude</label>
+      <input id="latitude" name="latitude" type="text" readonly>
+
+      <label for="longitude">Longitude</label>
+      <input id="longitude" name="longitude" type="text" readonly>
+
+      <button id="submit-button" type="submit" disabled>Send to Flask</button>
+    </form>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    const latitudeInput = document.getElementById('latitude');
+    const longitudeInput = document.getElementById('longitude');
+    const submitButton = document.getElementById('submit-button');
+    const statusLine = document.getElementById('map-status');
+
+    if (!window.L) {
+      statusLine.textContent = 'Leaflet failed to load.';
+      console.error('Leaflet library not found.');
+    } else {
+      const edinburgh = [55.9533, -3.1883];
+      const map = L.map('map').setView(edinburgh, 13); // 13 is the 'zoom' level
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { // OpenStreetMap tiles, there are other options. See: https://leafletjs.com/reference-1.9.4.html#tilelayer and https://openmaptiles.org/styles/
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      let marker = null;
+
+      const formatNumber = (value) => value.toFixed(5);
+
+      const updateForm = (latlng) => {
+        latitudeInput.value = formatNumber(latlng.lat);
+        longitudeInput.value = formatNumber(latlng.lng);
+        submitButton.disabled = false;
+        statusLine.textContent = `Selected latitude ${latitudeInput.value}, longitude ${longitudeInput.value}.`;
+      };
+
+      map.on('click', (event) => {
+        const { latlng } = event;
+        if (marker) {
+          marker.setLatLng(latlng);
+        } else {
+          marker = L.marker(latlng, { draggable: true, autoPan: true }).addTo(map);
+          marker.on('move', (moveEvent) => {
+            updateForm(moveEvent.latlng);
+          });
+        }
+        updateForm(latlng);
+      });
+    }
+  </script>
+{% endblock %}
